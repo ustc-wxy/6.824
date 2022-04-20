@@ -13,7 +13,14 @@ import "strconv"
 // example to show how to declare the arguments
 // and reply for an RPC.
 //
+type EmptyArgs struct {
+}
+type EmptyReply struct {
+}
 
+//type CheckAllDone struct {
+//	res bool
+//}
 type ExampleArgs struct {
 	X int
 }
@@ -22,8 +29,13 @@ type ExampleReply struct {
 	Y int
 }
 
-// Add your RPC definitions here.
+// Add your RPC definitions here
+type AssignJobArgs struct {
+}
 
+type AssignJobReply struct {
+	job *Job
+}
 
 // Cook up a unique-ish UNIX-domain socket name
 // in /var/tmp, for the coordinator.

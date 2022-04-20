@@ -309,8 +309,10 @@ rm $SOCKNAME
 sort mr-out* | grep . > mr-crash-all
 if cmp mr-crash-all mr-correct-crash.txt
 then
+  echo '========================================================================='
   echo '---' crash test: PASS
 else
+  echo '========================================================================='
   echo '---' crash output is not the same as mr-correct-crash.txt
   echo '---' crash test: FAIL
   failed_any=1

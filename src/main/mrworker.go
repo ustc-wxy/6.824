@@ -21,10 +21,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage: mrworker xxx.so\n")
 		os.Exit(1)
 	}
-
+	fmt.Println("loading...", os.Args[1])
 	mapf, reducef := loadPlugin(os.Args[1])
-
-	mr.Worker(mapf, reducef)
+	//for i := 1; i < 5; i++ {
+	//	go mr.Worker(mapf, reducef, i)
+	//}
+	//for true {
+	//}
+	mr.Worker(mapf, reducef, 1)
 }
 
 //

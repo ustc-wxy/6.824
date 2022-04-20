@@ -359,7 +359,7 @@ func (cfg *config) cleanup() {
 // attach server i to the net.
 func (cfg *config) connect(i int) {
 	// fmt.Printf("connect(%d)\n", i)
-
+	fmt.Printf("%s connected!\n", cfg.rafts[i])
 	cfg.connected[i] = true
 
 	// outgoing ClientEnds
@@ -382,7 +382,7 @@ func (cfg *config) connect(i int) {
 // detach server i from the net.
 func (cfg *config) disconnect(i int) {
 	// fmt.Printf("disconnect(%d)\n", i)
-
+	fmt.Printf("%s disconnect\n", cfg.rafts[i])
 	cfg.connected[i] = false
 
 	// outgoing ClientEnds
@@ -470,7 +470,7 @@ func (cfg *config) checkTerms() int {
 			if term == -1 {
 				term = xterm
 			} else if term != xterm {
-				cfg.t.Fatalf("servers disagree on term")
+				cfg.t.Fatalf("servers disagree on term,xterm is %d but term is %d, id is %d", xterm, term, i)
 			}
 		}
 	}
@@ -486,7 +486,8 @@ func (cfg *config) checkNoLeader() {
 		if cfg.connected[i] {
 			_, is_leader := cfg.rafts[i].GetState()
 			if is_leader {
-				cfg.t.Fatalf("expected no leader among connected servers, but %v claims to be leader", i)
+				fmt.Printf("%s 's state is %v\n", cfg.rafts[i], cfg.connected[i])
+				cfg.t.Fatalf("expected no leader among connected servers, but %v claims to be leader,%s", i, cfg.rafts[i])
 			}
 		}
 	}
