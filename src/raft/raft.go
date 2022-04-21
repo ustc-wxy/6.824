@@ -221,7 +221,7 @@ func (rf *Raft) BecomeLeader() {
 	FunctionDescription：Leader's toy.
 	Part:2A
 */
-const heartbeatInterval = time.Duration(20 * time.Millisecond)
+const heartbeatInterval = time.Duration(50 * time.Millisecond)
 
 func (rf *Raft) HeartBeatLoop() {
 	for rf.killed() == false {
@@ -273,11 +273,13 @@ func (rf *Raft) ElectionLoop() {
 func (rf *Raft) ApplyLoop() {
 	for rf.killed() == false {
 		rf.mu.Lock()
-		lastApplied := rf.lastApplied
-		commitIndex := rf.commitIndex
-		for lastApplied >= commitIndex {
+
+		for rf.lastApplied >= rf.commitIndex {
 			rf.applyCond.Wait()
 		}
+		lastApplied := rf.lastApplied
+		commitIndex := rf.commitIndex
+		DPrintf("%s is Applying! lastApplied is %d,commitIndex is %d\n", rf, rf.lastApplied, rf.commitIndex)
 		applyEntires := make([]LogEntry, commitIndex-lastApplied)
 		copy(applyEntires, rf.log[lastApplied+1:commitIndex+1])
 
@@ -331,6 +333,11 @@ type AppendEntriesReply struct {
 	Success bool
 }
 
+func (ae *AppendEntriesArgs) String() string {
+	return fmt.Sprintf("[Term:%d;preIndex:%d;preTerm:%d;Entries:%v;Lcom:%d]",
+		ae.Term, ae.PrevLogIndex, ae.PrevLogTerm, ae.Entries, ae.LeaderCommit)
+}
+
 func (rf *Raft) SingleReplicate(peer int) {
 	//Mutex UnLocked
 	rf.mu.Lock()
@@ -365,7 +372,7 @@ func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, reply *Ap
 func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
-
+	DPrintf("%s has received AppendEntries %s\n", rf, args)
 	//Step1.Check term and state
 	reply.Term = rf.currentTerm
 	reply.Success = false
@@ -388,9 +395,10 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	//Step4.CommitIndex update
 	if args.LeaderCommit > rf.commitIndex {
 		rf.commitIndex = Min(args.LeaderCommit, len(rf.log)-1)
+		rf.applyCond.Signal()
 	}
 	reply.Success = true
-
+	DPrintf("%s AppendEntries reply is %v\n", rf, reply)
 }
 
 /*
@@ -407,7 +415,9 @@ func (rf *Raft) handleAppendEntriesResponse(server int, args *AppendEntriesArgs,
 		rf.nextIndex[peer] = rf.matchIndex[peer] + 1
 		majorIndex := rf.getMajorityIndex()
 		if rf.log[majorIndex].Term == rf.currentTerm && majorIndex > rf.commitIndex {
+			//DPrintf("%s majorIndex is %d\n", rf, majorIndex)
 			rf.commitIndex = majorIndex
+			rf.applyCond.Signal()
 		}
 	} else {
 		prevLogIndex := args.PrevLogIndex
@@ -655,10 +665,10 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	}
 	logLen := len(rf.log)
 	if logLen > 0 {
-		index = rf.log[logLen-1].Index
+		index = rf.log[logLen-1].Index + 1
 	} else {
 		//Note:index start from 0
-		index = 0
+		index = 1
 	}
 	rf.log = append(rf.log, LogEntry{Index: index, Term: term, Command: command})
 	DPrintf("%s has received Command!\n", rf)
