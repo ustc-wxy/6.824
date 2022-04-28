@@ -196,7 +196,7 @@ func (rf *Raft) getFirstLog() LogEntry {
 	return rf.log[0]
 }
 func (rf *Raft) GetLastLog() LogEntry {
-	DPrintf("%s is getting LastLog\n", rf)
+	//DPrintf("%s is getting LastLog\n", rf)
 	size := len(rf.log)
 	return rf.log[size-1]
 }
@@ -237,10 +237,10 @@ func (rf *Raft) BecomeLeader() {
 	rf.state = Leader
 	rf.persist()
 	peerSum := len(rf.peers)
-	logLen := len(rf.log)
+	//logLen := len(rf.log)
 	for i := 0; i < peerSum; i++ {
 		rf.matchIndex[i] = 0
-		rf.nextIndex[i] = logLen
+		rf.nextIndex[i] = rf.GetLastLog().Index + 1
 	}
 	rf.heartTimer.Reset(heartbeatInterval)
 	go rf.HeartBeatLoop()
@@ -317,11 +317,16 @@ func (rf *Raft) ApplyLoop() {
 			rf.applyCond.Wait()
 		}
 		firstIndex := rf.getFirstLog().Index
+		//try
+		rf.lastApplied = Max(rf.lastApplied, firstIndex)
+		//try
 		lastApplied := rf.lastApplied
 		commitIndex := rf.commitIndex
 		DPrintf("%s is Applying! lastApplied is %d,commitIndex is %d\n", rf, rf.lastApplied, rf.commitIndex)
-		//DPrintf("%s log is %v\n", rf, rf.log)
+
 		applyEntires := make([]LogEntry, commitIndex-lastApplied)
+		//DPrintf("%s fstIndex is %d\n", rf, firstIndex)
+		//LPrintf("%s log is %v\n", rf, rf.log)
 		copy(applyEntires, rf.log[lastApplied+1-firstIndex:commitIndex+1-firstIndex])
 
 		rf.mu.Unlock()
@@ -357,8 +362,11 @@ func (rf *Raft) BroadCastHeartBeat(isHearBeat bool) {
 	//DPrintf("%s new round,log is %v\n", rf, rf.log)
 	for i := range rf.peers {
 		if i == rf.me {
-			rf.nextIndex[i] = len(rf.log)
-			rf.matchIndex[i] = len(rf.log) - 1
+			//rf.nextIndex[i] = len(rf.log)
+			//rf.matchIndex[i] = len(rf.log) - 1
+			rf.matchIndex[i] = rf.GetLastLog().Index
+			rf.nextIndex[i] = rf.matchIndex[i] + 1
+
 			continue
 		}
 		if isHearBeat {
@@ -467,6 +475,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 func (rf *Raft) handleAppendEntriesResponse(server int, args *AppendEntriesArgs, reply *AppendEntriesReply) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
+	defer rf.persist()
 	DPrintf("%s handle AppendEntries Response %v\n", rf, reply)
 	if reply.Term > rf.currentTerm {
 		rf.BecomeFollower(reply.Term)
@@ -482,6 +491,7 @@ func (rf *Raft) handleAppendEntriesResponse(server int, args *AppendEntriesArgs,
 		rf.nextIndex[peer] = rf.matchIndex[peer] + 1
 		majorIndex := rf.getMajorityIndex()
 		entry := rf.getLog(majorIndex)
+
 		if entry == nil {
 			return
 		}
@@ -492,7 +502,10 @@ func (rf *Raft) handleAppendEntriesResponse(server int, args *AppendEntriesArgs,
 		}
 	} else {
 		prevLogIndex := args.PrevLogIndex
-		for prevLogIndex > 0 && rf.log[prevLogIndex].Term == args.PrevLogTerm {
+		for prevLogIndex > rf.getFirstLog().Index && rf.getLog(prevLogIndex).Term == args.PrevLogTerm {
+			prevLogIndex--
+		}
+		if prevLogIndex == rf.getFirstLog().Index {
 			prevLogIndex--
 		}
 		rf.nextIndex[peer] = prevLogIndex + 1
