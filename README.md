@@ -1,5 +1,7 @@
-# 6.824
-Lab of MIT 6.824
-4.20 PASS 1*
-4.21 PASS 2A
-4.22 PASS 2B
+# MIT 6.824 Lab
+
+- Apr 19~20 PASS  Lab1(MapReduce)
+- Apr 21 Pass Lab2A ( Raft - LeaderElection)
+- Apr 22Pass Lab2B ( Raft - AppendEntries)
+- Apr 23~24 Pass Lab2C ( Raft - persistence)
+- Apr 28 Pass Lab2D ( Raft - SnapShot)
